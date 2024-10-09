@@ -8,7 +8,7 @@ import random
 import json
 import re
 
-
+# openai.api_key = 'openai_api_key'
 class Bot(ABot):
 
     def __init__(self):
