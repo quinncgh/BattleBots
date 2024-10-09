@@ -4,10 +4,14 @@ from constants import bot_session_id, detector_session_id
 import json
 
 # Environment Variables
-base_url = os.getenv('BASE_URL')
-authentication_token = os.getenv('AUTH_TOKEN')
+# base_url = os.getenv('BASE_URL')
+# authentication_token = os.getenv('AUTH_TOKEN')
 
-header = {'Authorization': 'bearer ' + authentication_token, 'Content-Type': 'application/json'}
+# Environment Variables for Testing
+base_url = "http://52.207.242.165:3000/api/test"
+authentication_token = ""
+
+header = {'Authorization': 'bearer ' + authentication_token, 'Content-Type': 'application/json'} # restore for submission
 
 #BOT SECTION
 class SessionInfo:
@@ -53,7 +57,7 @@ def get_sub_session(sub_session):
         return response, SubSessionDataset(response.json())
     
 def submit_injection(sub_session, posts_submission, users_submission):
-    print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4))
+    print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4)) #prints the posts and users created
     return requests.post(base_url + '/bot/session/' + str(bot_session_id) + '/' + str(sub_session), headers=header, data=json.dumps({"posts": posts_submission, "users": users_submission}))
 
 # DETECTOR SECTION

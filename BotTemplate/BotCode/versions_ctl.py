@@ -1,3 +1,5 @@
+# This file stores the old versions of bot
+
 from abc_classes import ABot
 from teams_classes import NewUser, NewPost
 from BotTemplate.BotCode.users import RealPost, RealUser
@@ -5,7 +7,6 @@ import openai
 import random
 import json
 import re
-
 
 
 class Bot(ABot):
@@ -22,24 +23,17 @@ class Bot(ABot):
         # new_users = [
         #     NewUser(username="TestBot", name="Emilie", description="I'm a test bot."),
         # ]
+
         
         #part 1: process the session_info (optional for now, depends on the implimentation)
         #part 2: use the processed session_info to build the prompt
         #part 3: receive the answer (ideally in json data format) and processed the data 
         #part 4: use the processed received data to build users 
-        prompt_version = "variant_1"
-        # model = "gpt-3.5-turbo"
-        model = "gpt-4o"
-
-        prompt = self.generate_prompt_general(session_info,prompt_version) # prompt for generating use
-        # print("Prompt for generating Users: ")
+        prompt = self.generate_prompt_general(session_info,"variant_1")
         # print(prompt)
-
-        generated_users_json = self.send_prompt_user(prompt,model)# return  json data 
+        generated_users_json = self.send_prompt_api(prompt)# return  json data 
         generated_users_list = json.loads(generated_users_json)  # json type to a list
-        # print("List of new users: ")
-        # print(generated_users_list)# list of new users, each users is a dictionary
-        
+        print(generated_users_list)
         new_users = [
             NewUser(
                 username=user["username"],
@@ -58,18 +52,10 @@ class Bot(ABot):
         # print(vars(datasets_json))
         # posts = self.process_test(datasets_json,users_list)
         # return posts
-        
-        template_version = "variant_2"
-        # model = "gpt-3.5-turbo"
-        model = "gpt-4o"
 
         real_user_list = self.get_realuser_list(datasets_json)
-        filled_prompt = self.fill_prompt_template_post(real_user_list,template_version)
-        # print()
-        # print("Complete Prompt for generating posts:")
-        # print(filled_prompt)
-
-        posts = self.send_prompt_post(filled_prompt,users_list,model)
+        filled_prompt = self.fill_prompt_template_post(real_user_list)
+        posts = self.send_prompt_post(filled_prompt,users_list)
         return posts
 
         # Example 
@@ -85,7 +71,7 @@ class Bot(ABot):
 
 
     #functions for both create user and genereate_user
-    def load_prompt_template(self):
+    def load_prompt_template(self,usage,prompt_ver):
         try:
             with open('BotTemplate/BotCode/prompts.json', 'r', encoding='utf-8') as file:
                 prompts_template = json.load(file)
@@ -93,7 +79,8 @@ class Bot(ABot):
             print(f"Error: File not found.")
             return None
         
-        return prompts_template
+        prompt_template = prompts_template[usage].get(prompt_ver) 
+        return prompt_template
             
     #functions for create_user
     def get_session_variables(self, session_info):
@@ -103,6 +90,9 @@ class Bot(ABot):
         self.language = session_info.lang if session_info.lang else "unknown"
 
         return {
+            # "topic": session_info.influence_target.get("topic", "") if session_info.influence_target else "no specific topic",
+            # "keywords": ', '.join(session_info.influence_target.get("keywords", [])) if session_info.influence_target else "no specific",
+            # "language": session_info.lang if session_info.lang else "unknown",
 
             "topic": self.topic,
             "keywords": self.keywords,
@@ -134,18 +124,55 @@ class Bot(ABot):
         
         return filled_prompt
     
+    def generate_prompt_1(self,session_info):
+
+        topic = session_info.influence_target["topic"]
+        keywords = ', '.join(session_info.influence_target["keywords"])
+        language = session_info.lang
+        real_users = ', '.join([user["username"] for user in session_info.users])
+
+        prompt = f"""
+        Based on the following session data, generate 3 user profiles. Each profile should include a username, name, and optional fields: a description (with a 50% chance of inclusion) and location (with a 50% chance of inclusion). The profiles should reflect the given topic and keywords, and should be formatted in JSON.
+
+        Session Data:
+        - Topic: {topic}
+        - Keywords: {keywords}
+        - Language: {language}
+
+        Example Real Users:
+        {real_users}
+
+        Output 3 fictional user profiles in JSON format as follows:
+        [
+            {{
+                "username": "<string>",
+                "name": "<string>",
+                "description": "<string or null if not included>",
+                "location": "<string or null if not included>"
+            }},
+            ...
+        ]
+        """
+        return prompt
+
     def generate_prompt_general(self,session_info,prompt_ver):
-        all_templates = self.load_prompt_template() #load all the templates from the json file
-        prompt_template = all_templates["user_generation"].get(prompt_ver)        
-        session_vars = self.get_session_variables(session_info) # get all the session info variables from the session_info object
-        filled_prompt = self.fill_prompt_template(prompt_template, session_vars) #prepare the filled propmpt
+        try:
+            with open('BotTemplate/BotCode/prompts.json', 'r', encoding='utf-8') as file:
+                prompts_template = json.load(file)
+        except FileNotFoundError:
+            print(f"Error: File not found.")
+            return None 
+        
+        prompt_template = prompts_template["user_generation"].get(prompt_ver)          
+        session_vars = self.get_session_variables(session_info)
+        filled_prompt = self.fill_prompt_template(prompt_template, session_vars)
         return filled_prompt
 
-    def send_prompt_user(self,prompt,llm_model):
+    def send_prompt_api(self,prompt):
     
         try:
             response = openai.chat.completions.create(
-                model=llm_model,
+                model="gpt-3.5-turbo",
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
@@ -154,13 +181,8 @@ class Bot(ABot):
                 stop=None,
                 temperature=0.7
             )
-            # print()
-            # print("Raw resonse from LLM (create users): ")
             # print(response)
-
-            generated_users = response.choices[0].message.content# extract the data from the raw response
-            # print()
-            # print("Resonse from LLM for create users:")
+            generated_users = response.choices[0].message.content# Parse the response and convert it to JSON
             # print(generated_users)
             return generated_users 
         
@@ -169,25 +191,77 @@ class Bot(ABot):
             return None
 
     #functions for generate_content
+    def process_test(self,datasets_json, users_list):
+        test_prompt = """
+        Please generate 3 social media posts based on the following examples:
+        'I cannot wait to see LeBron James and his son play together this season!!!',
+        'Not sure about Lakers this year, still think Clippers will win the finals this season',
+        'If Curry will transfer to Lakers this year, LeBron probably could have another ring.'
+
+        Note that you do not need to strictly match the samples. 
+        Do not include any numbering or markers. Just return the posts as plain text, separated by new lines, and return the posts as strings in a Python list.
+        """
+        try:
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "user", "content": test_prompt}
+                ],
+                max_tokens=500,
+                n=1,
+                stop=None,
+                temperature=0.7
+            )
+            generated_posts = response.choices[0].message.content
+            # print(generated_users)
+
+        except Exception as e:
+            print(f"Error Calling Large Model : {e}")
+
+        # print(generated_posts)
+        generated_posts_list = generated_posts.split('\n')
+        generated_posts_list = [post.strip() for post in generated_posts_list if post.strip()]
+        print(generated_posts_list)
+
+        posts = []
+        # Iterate over both users_list and generated_posts_list in parallel
+        for j in range(len(users_list)):
+            if j < len(generated_posts_list):  # Ensure there are enough generated posts
+                # Use the generated post content for the text field
+                post_text = generated_posts_list[j]
+            else:
+                # In case there are fewer posts than users, fallback to a default message
+                post_text = "This user has no generated post."
+
+            # Create a NewPost object using the generated post text and assign to the corresponding user
+            posts.append(NewPost(
+                text=post_text,
+                author_id=users_list[j].user_id,
+                created_at='2024-08-18T00:20:30.000Z',
+                user=users_list[j]
+            ))
+        print("check point 1")
+        
+        return posts
+    
     def get_realuser_list(self,datasets_json):
-        # this function will process the user & post and create a real user list which contains all the info include post
         user_dict = {}
 
         for user_data in datasets_json.users:
-            user = RealUser()
+            user = RealUser()  # Create an empty RealUser object
             user.id = user_data['id']
             user.tweet_count = user_data['tweet_count']
             user.z_score = user_data['z_score']
             user.username = user_data['username']
             user.name = user_data['name']
-            user.description = user_data.get('description') 
-            user.location = user_data.get('location')
+            user.description = user_data.get('description')  # Use .get() in case 'description' is missing
+            user.location = user_data.get('location')  # Use .get() to safely handle None
             
             # Add the user to the dictionary by their ID
             user_dict[user.id] = user
         
         for post_data in datasets_json.posts:
-            post = RealPost() 
+            post = RealPost()  # Create an empty RealPost object
             post.id = post_data['id']
             post.text = post_data['text']
             post.author_id = post_data['author_id']
@@ -201,8 +275,7 @@ class Bot(ABot):
         return list(user_dict.values())
     
     def build_prompts_data(self, real_user_list):
-        # This function will create the data part for the prompt and filled into a template later
-        # The modification of this function will focus on how to select the user & their post such that the data is representitive
+        #The Key point for this function is how to select the posts that representitive
         user_info_str = ""
 
         if len(real_user_list) >= 5:
@@ -245,14 +318,10 @@ class Bot(ABot):
 
         return user_info_str
 
-    def fill_prompt_template_post(self,real_user_list, prompt_ver):
-        # This function will create a complete prompt with user's info and posts
-    
-        # Get the template for generating content
-        all_prompt_template = self.load_prompt_template()
-        prompt_template = all_prompt_template["post_generation"].get(prompt_ver)
+    def fill_prompt_template_post(self,real_user_list):
 
-        user_info_str = self.build_prompts_data(real_user_list)# prepare the data(user info & posts)
+        prompt_template = self.load_prompt_template("post_generation", "variant_2")
+        user_info_str = self.build_prompts_data(real_user_list)
         filled_prompt = prompt_template.format(
             topic=self.topic,
             keywords=self.keywords,
@@ -260,12 +329,10 @@ class Bot(ABot):
         )
         return filled_prompt
        
-    def send_prompt_post(self,filled_prompt,users_list,llm_model):
-
-        
+    def send_prompt_post(self,filled_prompt,users_list):
         try:
             response = openai.chat.completions.create(
-                model=llm_model,
+                model="gpt-4o",
                 messages=[
                     {"role": "user", "content": filled_prompt}
                 ],
@@ -274,28 +341,22 @@ class Bot(ABot):
                 stop=None,
                 temperature=0.7
             )
-            # print()
-            # print("Raw response from LLM (genreate post): ")
-            # print(response)
-
             generated_posts = response.choices[0].message.content
-            # print()
-            # print("Response from LLM: ") # LLM gives a json string, generated posts are in JSON format
-            # print(generated_posts)
+            # print(generated_users)
 
         except Exception as e:
-            print(f"Error Calling Large Model API : {e}")
+            print(f"Error Calling Large Model : {e}")
 
 
-        generated_posts_dict  = json.loads(generated_posts) #convert json string into a json data
+        generated_posts_dict  = json.loads(generated_posts)
         generated_posts_list = [generated_posts_dict[key] for key in sorted(generated_posts_dict.keys()) if 'post' in key]
-        # print()
-        # print("List of generated content in string: ")
-        # print(generated_posts_list)
+        print(generated_posts_list)
 
-        posts = [] #stores post object 
+        posts = []
         # Iterate over both users_list and generated_posts_list in parallel
+        post_id = 10000
         for j in range(len(users_list)):
+            post_id += 1
             if j < len(generated_posts_list):  # Ensure there are enough generated posts
                 # Use the generated post content for the text field
                 post_text = generated_posts_list[j]
@@ -304,7 +365,7 @@ class Bot(ABot):
                 # This part could ask LLM or a small model to generate radom messages
                 post_text = "This user has no generated post."
 
-            # Create a NewPost object
+            # Create a NewPost object using the generated post text and assign to the corresponding user
             posts.append(NewPost(
                 text=post_text,
                 author_id=users_list[j].user_id,
@@ -312,6 +373,4 @@ class Bot(ABot):
                 user=users_list[j]
             ))
 
-        return posts
-    
-    # Todo: def generate create time
+        return posts      
