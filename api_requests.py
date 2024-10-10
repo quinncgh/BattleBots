@@ -57,7 +57,7 @@ def get_sub_session(sub_session):
         return response, SubSessionDataset(response.json())
     
 def submit_injection(sub_session, posts_submission, users_submission):
-    # print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4)) #prints the posts and users created
+    print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4)) #prints the posts and users created
     return requests.post(base_url + '/bot/session/' + str(bot_session_id) + '/' + str(sub_session), headers=header, data=json.dumps({"posts": posts_submission, "users": users_submission}))
 
 # DETECTOR SECTION
