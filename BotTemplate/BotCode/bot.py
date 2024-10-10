@@ -8,7 +8,6 @@ import json
 import time
 import re
 
-openai.api_key =  = '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'
 
 class Bot(ABot):
 
