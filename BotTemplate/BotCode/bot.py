@@ -8,6 +8,11 @@ import json
 import time
 import re
 
+key1 = 'sk-proj-Ph_DceD2n4-Ql-PU3jINorXb1AL4l_rYLfZ0BYMcGB2gbS3jvxt_oDg72S4ANsMJvJdtg1NOQqT3BlbkFJsI18YT'
+key2 = '_wyezcDS4DK6ZuP2WKSzfDE4LApVlVtc3_BZWR9iuTSCmGDpAnnLjrGVi8tGL5187nAA’
+key = key1 + key2
+
+openai.api_key = key
 
 class Bot(ABot):
 
