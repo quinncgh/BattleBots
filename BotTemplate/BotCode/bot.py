@@ -5,7 +5,9 @@ from datetime import datetime,timedelta
 import openai 
 import random
 import json
+import time
 import re
+
 
 class Bot(ABot):
 
@@ -237,47 +239,55 @@ class Bot(ABot):
         )
         return filled_prompt
        
-    def send_prompt_post(self,filled_prompt,llm_model):
+    def send_prompt_post(self, filled_prompt, model, max_retries=3):
+        retries = 0
+        while retries < max_retries:
+            try:
+                # Call the LLM API to generate the response
+                response = openai.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": filled_prompt}
+                    ],
+                    max_tokens=1000,
+                    n=1,
+                    stop=None,
+                    temperature=0.7
+                )
 
-        
-        try:
-            response = openai.chat.completions.create(
-                model=llm_model,
-                messages=[
-                    {"role": "user", "content": filled_prompt}
-                ],
-                max_tokens=500,
-                n=1,
-                stop=None,
-                temperature=0.7
-            )
-            # print()
-            # print("Raw response from LLM (genreate post): ")
-            # print(response)
+                # print("\nResponse from LLM(raw):")
+                # print(response)
 
-            generated_posts = response.choices[0].message.content
-            # print()
-            # print("Response from LLM: ") # LLM gives a json string, generated posts are in JSON format
-            # print(generated_posts)
+                generated_posts = response.choices[0].message.content
+                # print("\nResponse from LLM(Json String):")
+                # print(generated_posts)
+              
+                generated_posts_dict = json.loads(generated_posts)  # Attempt to parse JSON
+                generated_posts_list = [generated_posts_dict[key] for key in sorted(generated_posts_dict.keys()) if 'post' in key]
 
-        except Exception as e:
-            print(f"Error Calling Large Model API : {e}")
+                time.sleep(10)
+                return generated_posts_list 
 
+            except json.JSONDecodeError as e:
+                print(f"JSON decoding error: {e}")
+                print("The response from LLM was incomplete or malformed. Retrying...")
+                retries += 1
+                time.sleep(10) 
 
-        generated_posts_dict  = json.loads(generated_posts) #convert json string into a json data
-        generated_posts_list = [generated_posts_dict[key] for key in sorted(generated_posts_dict.keys()) if 'post' in key]
-        # print()
-        # print("List of generated content in string: ")
-        # print(generated_posts_list)
+            except Exception as e:
+                print(f"Error calling LLM API: {e}")
+                return None 
 
-        return generated_posts_list
+        # If max retries reached, return a fallback message
+        print("Max retries reached. Returning fallback message.")
+        return ["The users content is not available"] * 20  
     
     def generate_new_posts(self,users_list, generated_posts_list):
         posts = []  
         min_posts_per_user = 5
-        max_posts_per_user = 8
+        max_posts_per_user = 6
         total_posts = len(generated_posts_list)
-        print(total_posts)
+        # print(f"\nNumber of Post Genreated: {total_posts}")
 
         # To track the index of the posts
         post_index = 0
