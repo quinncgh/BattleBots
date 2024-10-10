@@ -1,12 +1,11 @@
 from abc_classes import ABot
 from teams_classes import NewUser, NewPost
 from BotTemplate.BotCode.users import RealPost, RealUser
+from datetime import datetime,timedelta
 import openai 
 import random
 import json
 import re
-
-# openai.api_key = 'openai_api_key'
 
 class Bot(ABot):
 
@@ -17,16 +16,7 @@ class Bot(ABot):
         self.lang = None
 
     def create_user(self, session_info):
-
-        # Example:
-        # new_users = [
-        #     NewUser(username="TestBot", name="Emilie", description="I'm a test bot."),
-        # ]
         
-        #part 1: process the session_info (optional for now, depends on the implimentation)
-        #part 2: use the processed session_info to build the prompt
-        #part 3: receive the answer (ideally in json data format) and processed the data 
-        #part 4: use the processed received data to build users 
         prompt_version = "variant_1"
         # model = "gpt-3.5-turbo"
         model = "gpt-4o"
@@ -54,10 +44,6 @@ class Bot(ABot):
     def generate_content(self, datasets_json, users_list):
 
         # It needs to return json with the users and their description and the posts to be inserted.
-        # Test:
-        # print(vars(datasets_json))
-        # posts = self.process_test(datasets_json,users_list)
-        # return posts
         
         template_version = "variant_2"
         # model = "gpt-3.5-turbo"
@@ -69,19 +55,10 @@ class Bot(ABot):
         # print("Complete Prompt for generating posts:")
         # print(filled_prompt)
 
-        posts = self.send_prompt_post(filled_prompt,users_list,model)
-        return posts
+        generated_posts = self.send_prompt_post(filled_prompt,model)
+        new_posts_list = self.generate_new_posts(users_list,generated_posts)
+        return new_posts_list
 
-        # Example 
-        # posts = []
-        # for j in range(len(users_list)):
-        #     posts.append(NewPost(text="Pandas are amazing!", author_id=users_list[j].user_id, created_at='2024-08-18T00:20:30.000Z',user=users_list[j]))
-        # return posts
-    
-        #part 1:process subsession_info(will need a more sophsiticated and efficient method to extract the posts) 
-        #part 2:use the processed sub-session data to build prompts
-        #part 3:receive the answer (ideally in json data format) and processed the data
-        #part 4:use the received data to build prompts
 
 
     #functions for both create user and genereate_user
@@ -260,7 +237,7 @@ class Bot(ABot):
         )
         return filled_prompt
        
-    def send_prompt_post(self,filled_prompt,users_list,llm_model):
+    def send_prompt_post(self,filled_prompt,llm_model):
 
         
         try:
@@ -293,25 +270,52 @@ class Bot(ABot):
         # print("List of generated content in string: ")
         # print(generated_posts_list)
 
-        posts = [] #stores post object 
-        # Iterate over both users_list and generated_posts_list in parallel
-        for j in range(len(users_list)):
-            if j < len(generated_posts_list):  # Ensure there are enough generated posts
-                # Use the generated post content for the text field
-                post_text = generated_posts_list[j]
-            else:
-                # In case there are fewer posts than users, fallback to a default message
-                # This part could ask LLM or a small model to generate radom messages
-                post_text = "This user has no generated post."
+        return generated_posts_list
+    
+    def generate_new_posts(self,users_list, generated_posts_list):
+        posts = []  
+        min_posts_per_user = 5
+        max_posts_per_user = 8
+        total_posts = len(generated_posts_list)
+        print(total_posts)
 
-            # Create a NewPost object
-            posts.append(NewPost(
-                text=post_text,
-                author_id=users_list[j].user_id,
-                created_at='2024-08-18T00:20:30.000Z',
-                user=users_list[j]
-            ))
+        # To track the index of the posts
+        post_index = 0
+
+        for user in users_list:
+            user_posts = []
+            num_posts_for_user = random.randint(min_posts_per_user, max_posts_per_user)
+
+            for _ in range(num_posts_for_user):#assign posts to users
+                if post_index < total_posts:
+                    user_posts.append(generated_posts_list[post_index])
+                    post_index += 1
+                else:
+                    # If no generated posts are left, add a message for now, later allow to generate a post
+                    # Todo: generate a message
+                    user_posts.append("This user has no generated post.")
+
+            # Create NewPost objects for the user and append them to posts
+            for post_text in user_posts:
+                posts.append(NewPost(
+                    text=post_text,
+                    author_id=user.user_id,
+                    created_at=self.generate_post_time(),
+                    user=user
+                ))
 
         return posts
-    
+
+
+       
     # Todo: def generate create time
+    def generate_post_time(self):
+
+        now = datetime.now()
+        max_seconds = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+        random_seconds = random.uniform(0, max_seconds)
+        random_time = now - timedelta(seconds=random_seconds)
+
+        #required format: YYYY-MM-DDTHH:MM:SS.000Z
+        return random_time.strftime('%Y-%m-%dT%H:%M:%S') + '.000Z'
+
