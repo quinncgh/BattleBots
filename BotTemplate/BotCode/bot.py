@@ -41,7 +41,7 @@ class Bot(ABot):
             NewUser(
                 username=user["username"],
                 name=user["name"],
-                description=user.get("description", None),  
+                description=user.get("description", ""),  
                 location=user.get("location", None)          
             )
             for user in generated_users_list
