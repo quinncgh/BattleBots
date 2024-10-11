@@ -133,7 +133,7 @@ class Bot(ABot):
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500,
+                max_tokens=1000,
                 n=1,
                 stop=None,
                 temperature=0.7
