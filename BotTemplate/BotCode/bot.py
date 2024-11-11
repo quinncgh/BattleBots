@@ -23,8 +23,8 @@ class Bot(ABot):
         self.lang = None
 
     def create_user(self, session_info):
-        
-        prompt_version = "variant_1"
+        # print(vars(session_info)) # print all the data in the session_info
+        prompt_version = "variant_2"
         # model = "gpt-3.5-turbo"
         model = "gpt-4o"
 
@@ -46,27 +46,38 @@ class Bot(ABot):
             )
             for user in generated_users_list
         ]
+        # print(new_users)
         return new_users
 
     def generate_content(self, datasets_json, users_list):
 
         # It needs to return json with the users and their description and the posts to be inserted.
+        # print(vars(datasets_json))
         
-        template_version = "variant_2"
+        template_version = "variant_3"
         # model = "gpt-3.5-turbo"
         model = "gpt-4o"
 
+        emotion_list = ["joyful","sad","angry","surprised","neutral"]
+        # topic_list = [self.topic]
+        topic_list = [self.topic,"no specified"]
         real_user_list = self.get_realuser_list(datasets_json)
-        filled_prompt = self.fill_prompt_template_post(real_user_list,template_version)
-        # print()
-        # print("Complete Prompt for generating posts:")
-        # print(filled_prompt)
+        generated_posts = {}
+        
+        for topic in topic_list:
+            generated_posts[topic] = {}
+            for emotion in emotion_list:
+                if topic == "not secificed " or topic == None: filled_prompt = self.fill_prompt_template_post(real_user_list, "variant_4", topic=topic, keywords=self.keywords, emotion_str=emotion)
+                else:filled_prompt = self.fill_prompt_template_post(real_user_list, template_version, topic=topic, keywords=self.keywords, emotion_str=emotion)
+                # print()
+                # print("Complete Prompt for generating posts:")
+                # print(filled_prompt)
+                content_one_sentiment = self.send_prompt_post(filled_prompt,model)
+                print(content_one_sentiment)
+                generated_posts[topic][emotion] = content_one_sentiment
 
-        generated_posts = self.send_prompt_post(filled_prompt,model)
         new_posts_list = self.generate_new_posts(users_list,generated_posts)
         return new_posts_list
-
-
 
     #functions for both create user and genereate_user
     def load_prompt_template(self):
@@ -81,6 +92,8 @@ class Bot(ABot):
             
     #functions for create_user
     def get_session_variables(self, session_info):
+        # this section will store the session_info the Bot object for later use
+
         # print(vars(session_info))
         self.topic = session_info.influence_target.get("topic", "no specific topic") if session_info.influence_target else "no specific topic"
         self.keywords = ', '.join(session_info.influence_target.get("keywords", [])) if session_info.influence_target else "no specific"
@@ -106,6 +119,17 @@ class Bot(ABot):
             "sub_sessions_id": ', '.join([str(sub_session["sub_session_id"]) for sub_session in session_info.sub_sessions_info]) if session_info.sub_sessions_info else "No sub-sessions"
         }
 
+    def get_session_variables_username(self, session_info):
+        #this get session variable will only get the first 20 users of list of username
+        self.topic = session_info.influence_target.get("topic", "no specific topic") if session_info.influence_target else "no specific topic"
+        self.keywords = ', '.join(session_info.influence_target.get("keywords", [])) if session_info.influence_target else "no specific"
+        self.language = session_info.lang if session_info.lang else "unknown"
+        usernames = session_info.metadata.get("usernames", [])[:20] if session_info.metadata else []
+    
+        return {
+            "usernames": ', '.join(usernames) if usernames else "No usernames available"
+        }
+    
     def fill_prompt_template(self,prompt_template, session_vars):
         # Find all placeholders in the prompt template (e.g., {topic}, {keywords})
         placeholders = re.findall(r'{(.*?)}', prompt_template)
@@ -120,8 +144,11 @@ class Bot(ABot):
     
     def generate_prompt_general(self,session_info,prompt_ver):
         all_templates = self.load_prompt_template() #load all the templates from the json file
-        prompt_template = all_templates["user_generation"].get(prompt_ver)        
-        session_vars = self.get_session_variables(session_info) # get all the session info variables from the session_info object
+        prompt_template = all_templates["user_generation"].get(prompt_ver)
+
+        # session_vars = self.get_session_variables(session_info) # get all the session info variables from the session_info object
+        session_vars = self.get_session_variables_username(session_info) #only get the usernames as sample for gpt
+
         filled_prompt = self.fill_prompt_template(prompt_template, session_vars) #prepare the filled propmpt
         return filled_prompt
 
@@ -184,14 +211,16 @@ class Bot(ABot):
         
         return list(user_dict.values())
     
-    def build_prompts_data(self, real_user_list):
-        # This function will create the data part for the prompt and filled into a template later
+    def create_prompt_sample(self, real_user_list):
+        # build a string of samples to LLM 
+        # This function will make a string of users' info and ONE post associated with their account, the string will be used to fill the prompt
         # The modification of this function will focus on how to select the user & their post such that the data is representitive
+        
         user_info_str = ""
 
         if len(real_user_list) >= 5:
-            # More than 5 users: Randomly select 5 users and use 1 post from each
-            selected_users = random.sample(real_user_list, 5)
+            # More than 5 users: Randomly select 10 users and use 1 post from each
+            selected_users = random.sample(real_user_list, 10)
             for i, user in enumerate(selected_users, start=1):
                 if user.posts:
                     selected_post = random.choice(user.posts).text
@@ -205,11 +234,11 @@ class Bot(ABot):
 
     """
         else:
-            # Less than 5 users: Use at least 2 posts from each user until reaching 5 posts
+            # Less than 5 users: Use at least 2 posts from each user until reaching 10 posts
             post_count = 0
             for i, user in enumerate(real_user_list, start=1):
                 user_posts = user.posts if user.posts else ["This user does not have any posts"]
-                num_posts_to_add = min(2, len(user_posts))  # Use at least 2 posts or as many as available
+                num_posts_to_add = min(3, len(user_posts))  # Use at least 2 posts or as many as available
                 selected_posts = random.sample(user_posts, num_posts_to_add)
                 
                 # Append user information and posts to the prompt string
@@ -226,22 +255,32 @@ class Bot(ABot):
                         break
                 if post_count >= 5:
                     break
-
+        
+        # print(user_info_str)
         return user_info_str
 
-    def fill_prompt_template_post(self,real_user_list, prompt_ver):
-        # This function will create a complete prompt with user's info and posts
+    def fill_prompt_template_post(self,real_user_list, prompt_ver, topic, keywords, emotion_str):
+        # This function will create a complete prompt with specified topic, keywords, emotion, etc.
     
-        # Get the template for generating content
-        all_prompt_template = self.load_prompt_template()
+        all_prompt_template = self.load_prompt_template() # load the prompt template
         prompt_template = all_prompt_template["post_generation"].get(prompt_ver)
 
-        user_info_str = self.build_prompts_data(real_user_list)# prepare the data(user info & posts)
-        filled_prompt = prompt_template.format(
-            topic=self.topic,
-            keywords=self.keywords,
-            user_info_str=user_info_str
-        )
+        user_info_str = self.create_prompt_sample(real_user_list)# prepare the samples to fill into the prompt
+        if topic != None:
+            filled_prompt = prompt_template.format( # Complete Prompt to LLM
+                topic=topic,
+                keywords=keywords,
+                user_info_str=user_info_str,
+                emotion = emotion_str
+            )
+        else:
+            filled_prompt = prompt_template.format(
+                user_info_str=user_info_str,
+                emotion = emotion_str
+            )
+
+        # print(filled_prompt)
+
         return filled_prompt
        
     def send_prompt_post(self, filled_prompt, model, max_retries=3):
@@ -254,7 +293,7 @@ class Bot(ABot):
                     messages=[
                         {"role": "user", "content": filled_prompt}
                     ],
-                    max_tokens=1000,
+                    max_tokens=5000,
                     n=1,
                     stop=None,
                     temperature=0.7
@@ -287,30 +326,28 @@ class Bot(ABot):
         print("Max retries reached. Returning fallback message.")
         return ["The users content is not available"] * 20  
     
-    def generate_new_posts(self,users_list, generated_posts_list):
+    def generate_new_posts(self, users_list, generated_posts_dict, min_posts_per_user=2, max_posts_per_user=5):
         posts = []  
-        min_posts_per_user = 5
-        max_posts_per_user = 6
-        total_posts = len(generated_posts_list)
-        # print(f"\nNumber of Post Genreated: {total_posts}")
-
-        # To track the index of the posts
-        post_index = 0
 
         for user in users_list:
             user_posts = []
-            num_posts_for_user = random.randint(min_posts_per_user, max_posts_per_user)
+            total_posts_for_user = random.randint(min_posts_per_user, max_posts_per_user) # Randomly choose the number of posts for a user
+            topic_distribution = self.posts_topic_dist(generated_posts_dict, total_posts_for_user)
 
-            for _ in range(num_posts_for_user):#assign posts to users
-                if post_index < total_posts:
-                    user_posts.append(generated_posts_list[post_index])
-                    post_index += 1
-                else:
-                    # If no generated posts are left, add a message for now, later allow to generate a post
-                    # Todo: generate a message
-                    user_posts.append("This user has no generated post.")
 
-            # Create NewPost objects for the user and append them to posts
+
+            for topic, num_posts_for_topic in topic_distribution.items():
+                emotion_distribution = self.posts_emotions_dist_unif(generated_posts_dict[topic], num_posts_for_topic)
+                
+                for emotion, num_posts_for_emotion in emotion_distribution.items():
+                    available_posts = generated_posts_dict[topic][emotion]
+
+                    # Randomly sample the required number of posts for this emotion
+                    selected_posts = random.sample(available_posts, min(num_posts_for_emotion, len(available_posts)))
+                    user_posts.extend(selected_posts)
+                
+
+            # Create NewPost objects for each of the user's selected posts and append them to posts
             for post_text in user_posts:
                 posts.append(NewPost(
                     text=post_text,
@@ -320,6 +357,7 @@ class Bot(ABot):
                 ))
 
         return posts
+
 
 
        
@@ -334,3 +372,36 @@ class Bot(ABot):
         #required format: YYYY-MM-DDTHH:MM:SS.000Z
         return random_time.strftime('%Y-%m-%dT%H:%M:%S') + '.000Z'
 
+    def posts_topic_dist(self, generated_posts_dict, total_posts):
+        topic_distribution = {}
+        topics = list(generated_posts_dict.keys())  # List of topics available
+
+        percentages = self.random_percentage_distribution(len(topics))# Generate random percentages for each topic that sum to 100
+
+        for i, topic in enumerate(topics):
+            topic_distribution[topic] = int(total_posts * percentages[i] / 100)
+
+        return topic_distribution
+    
+    def random_percentage_distribution(self, n):
+        #function creates a random distribution
+        percentages = [random.randint(1, 100) for _ in range(n)]
+        total = sum(percentages)
+        return [int(p * 100 / total) for p in percentages]
+    
+    def posts_emotions_dist_unif(self, emotions_dict, total_posts_for_topic):
+        emotion_distribution = {}
+        emotions = list(emotions_dict.keys())
+        
+        
+        posts_per_emotion = total_posts_for_topic // len(emotions)
+        remaining_posts = total_posts_for_topic % len(emotions)  # Handle any remainder
+
+        for emotion in emotions:
+            emotion_distribution[emotion] = posts_per_emotion
+
+        for _ in range(remaining_posts):
+            selected_emotion = random.choice(emotions)
+            emotion_distribution[selected_emotion] += 1
+
+        return emotion_distribution
