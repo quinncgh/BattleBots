@@ -374,3 +374,37 @@ class Bot(ABot):
             ))
 
         return posts      
+
+
+
+    def generate_new_posts_v2(self, users_list, generated_posts_dict, min_posts_per_user=10, max_posts_per_user=20):
+        posts = []  
+
+        for user in users_list:
+            user_posts = []
+            total_posts_for_user = random.randint(min_posts_per_user, max_posts_per_user) # Randomly choose the number of posts for a user
+            topic_distribution = self.posts_topic_dist(generated_posts_dict, total_posts_for_user)
+
+
+
+            for topic, num_posts_for_topic in topic_distribution.items():
+                emotion_distribution = self.posts_emotions_dist_unif(generated_posts_dict[topic], num_posts_for_topic)
+                
+                for emotion, num_posts_for_emotion in emotion_distribution.items():
+                    available_posts = generated_posts_dict[topic][emotion]
+
+                    # Randomly sample the required number of posts for this emotion
+                    selected_posts = random.sample(available_posts, min(num_posts_for_emotion, len(available_posts)))
+                    user_posts.extend(selected_posts)
+            print(len(user_posts))
+                
+            # Create NewPost objects for each of the user's selected posts and append them to posts
+            for post_text in user_posts:
+                posts.append(NewPost(
+                    text=post_text,
+                    author_id=user.user_id,
+                    created_at=self.generate_post_time(),
+                    user=user
+                ))
+
+        return posts

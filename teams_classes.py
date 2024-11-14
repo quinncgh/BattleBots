@@ -1,7 +1,7 @@
 from pydantic import BaseModel, conint, constr, Field
 from typing import Optional
 
-class NewUser(BaseModel): # Should we give this file to the teams or should we only give them a description of the one that they are going to use or should I make two different files? One for the teams and one for us? At this point do I also need to separate it between bot and detector?
+class NewUser(BaseModel):
     username: constr(min_length=1)
     name: constr(min_length=1)
     description: Optional[str] = ""

@@ -3,14 +3,14 @@ import requests
 import json
 
 # Environment Variables
-# base_url = os.getenv('BASE_URL')
-# authentication_token = os.getenv('AUTH_TOKEN')
-# session_id = os.getenv('SESSION_ID')
+base_url = os.getenv('BASE_URL')
+authentication_token = os.getenv('AUTH_TOKEN')
+session_id = os.getenv('SESSION_ID')
 
 # Environment Variables for Testing
-base_url = "http://52.207.242.165:3000/api/test/1"
-authentication_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZWFtSWQiOiIyIiwidGVhbU5hbWUiOiJxdWlubmJvdDEiLCJpYXQiOjE3MzEyNTExMzQsImV4cCI6MTczMTMzNzUzNH0.Em1oF74jOz4VC_TauGEyT__GIklAo2KskLjJedZECKU"
-session_id = 1
+# base_url = "http://52.207.242.165:3000/api/test/1"
+# authentication_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZWFtSWQiOiIyIiwidGVhbU5hbWUiOiJxdWlubmJvdDEiLCJpYXQiOjE3MzE1NDc3NTQsImV4cCI6MTczMTYzNDE1NH0.Vp87Zstj5BmbnVPVMlBqgJgIhq1AxSxs0B1dH2oxdCE"
+# session_id = 3
 
 header = {'Authorization': 'bearer ' + authentication_token, 'Content-Type': 'application/json'} # restore for submission
 
@@ -58,7 +58,7 @@ def get_sub_session(sub_session):
         return response, SubSessionDataset(response.json())
     
 def submit_injection(sub_session, posts_submission, users_submission):
-    print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4))
+    # print(json.dumps({"posts": posts_submission, "users": users_submission}, indent=4))
     return requests.post(base_url + '/bot/session/' + str(session_id) + '/' + str(sub_session), headers=header, data=json.dumps({"posts": posts_submission, "users": users_submission}))
 
 # DETECTOR SECTION

@@ -2,6 +2,7 @@ from abc_classes import ABot
 from teams_classes import NewUser, NewPost
 from BotTemplate.BotCode.users import RealPost, RealUser
 from datetime import datetime,timedelta
+from tqdm import tqdm
 import openai 
 import random
 import json
@@ -58,22 +59,24 @@ class Bot(ABot):
         # model = "gpt-3.5-turbo"
         model = "gpt-4o"
 
-        emotion_list = ["joyful","sad","angry","surprised","neutral"]
-        # topic_list = [self.topic]
-        topic_list = [self.topic,"no specified"]
+        # emotion_list = ["joyful","sad","angry","surprised","neutral"]
+        # topic_list = [self.topic,"no specified"]
+        emotion_list = ["joyful","neutral"]
+        topic_list = [self.topic]
         real_user_list = self.get_realuser_list(datasets_json)
         generated_posts = {}
         
         for topic in topic_list:
             generated_posts[topic] = {}
             for emotion in emotion_list:
+            # for emotion in tqdm(emotion_list, desc="Processing emotions"):
                 if topic == "not secificed " or topic == None: filled_prompt = self.fill_prompt_template_post(real_user_list, "variant_4", topic=topic, keywords=self.keywords, emotion_str=emotion)
                 else:filled_prompt = self.fill_prompt_template_post(real_user_list, template_version, topic=topic, keywords=self.keywords, emotion_str=emotion)
                 # print()
                 # print("Complete Prompt for generating posts:")
                 # print(filled_prompt)
                 content_one_sentiment = self.send_prompt_post(filled_prompt,model)
-                print(content_one_sentiment)
+                # print(content_one_sentiment)
                 generated_posts[topic][emotion] = content_one_sentiment
 
         new_posts_list = self.generate_new_posts(users_list,generated_posts)
@@ -171,7 +174,7 @@ class Bot(ABot):
 
             generated_users = response.choices[0].message.content# extract the data from the raw response
             # print()
-            # print("Resonse from LLM for create users:")
+            # print("Response from LLM for create users:")
             # print(generated_users)
             return generated_users 
         
@@ -326,7 +329,11 @@ class Bot(ABot):
         print("Max retries reached. Returning fallback message.")
         return ["The users content is not available"] * 20  
     
-    def generate_new_posts(self, users_list, generated_posts_dict, min_posts_per_user=2, max_posts_per_user=5):
+
+
+        return posts
+
+    def generate_new_posts(self, users_list, generated_posts_dict, min_posts_per_user=5, max_posts_per_user=10):
         posts = []  
 
         for user in users_list:
@@ -345,8 +352,8 @@ class Bot(ABot):
                     # Randomly sample the required number of posts for this emotion
                     selected_posts = random.sample(available_posts, min(num_posts_for_emotion, len(available_posts)))
                     user_posts.extend(selected_posts)
+            # print(len(user_posts))
                 
-
             # Create NewPost objects for each of the user's selected posts and append them to posts
             for post_text in user_posts:
                 posts.append(NewPost(
@@ -357,7 +364,6 @@ class Bot(ABot):
                 ))
 
         return posts
-
 
 
        
