@@ -55,6 +55,7 @@ def main():
         
         
         new_users = bot.create_user(session_info)
+ 
 
         # Verify submission format    
         if len(new_users) == 0: # Empty submission
@@ -85,7 +86,6 @@ def main():
         for i in range(len(new_users)):
             bot_users.append(User(user_id=str(users_id_list[i]), username=new_users[i].username, name=new_users[i].name, description=new_users[i].description, location=new_users[i].location)) # Test if username and co have to be string or not later.
 
-    
         for sub_session in session_info.sub_sessions_id:
             # Get the team sub-session posts dataset and users dataset
             get_sub_response, sub_session_dataset = get_sub_session(sub_session)

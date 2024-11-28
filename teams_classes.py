@@ -1,5 +1,6 @@
 from pydantic import BaseModel, conint, constr, Field
 from typing import Optional
+import random
 
 class NewUser(BaseModel):
     username: constr(min_length=1)
@@ -17,8 +18,8 @@ class User(BaseModel):
     def to_dict(self):
         return {
             "id": self.user_id,
-            "tweet_count": 0,
-            "z_score": 0,
+            "tweet_count": random.randint(10, 100),#modification might not be ligiable
+            "z_score": random.uniform(-1, 1),
             "username": self.username,
             "name": self.name,
             "description": self.description,

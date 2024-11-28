@@ -31,22 +31,24 @@ class Bot(ABot):
 
     def create_user(self, session_info):
         # print(vars(session_info)) # print all the data in the session_info
+        # self.data_analyzing_tool("978726274779832320")
+        # return None
         model = "gpt-4o"
         template_ver_list = ["test_1","test_2"]
         users_list = []
         group_id = 1
 
-        # for template_ver in template_ver_list:          
-        #     sample_usr_info = self.load_sample_user()
-        #     prompt1 = self.generate_prompt_user_vtest(sample_usr_info,template_ver) 
-        #     # print("Prompt for generating Users: ")
-        #     # print(prompt1)
-        #     generated_users_json = self.send_prompt_user(prompt1,model)# return  json data 
-        #     generated_users_list = json.loads(generated_users_json)  # json type to a list
-        #     users_list.extend(generated_users_list)
-        #     group_label = f"generated_user_group_{group_id}"
-        #     self.user_labels.update({user["username"]: group_label for user in generated_users_list if "username" in user})
-        #     group_id += 1
+        for template_ver in template_ver_list:          
+            sample_usr_info = self.load_sample_user()
+            prompt1 = self.generate_prompt_user_vtest(sample_usr_info,template_ver) 
+            # print("Prompt for generating Users: ")
+            # print(prompt1)
+            generated_users_json = self.send_prompt_user(prompt1,model)# return  json data 
+            generated_users_list = json.loads(generated_users_json)  # json type to a list
+            users_list.extend(generated_users_list)
+            group_label = f"generated_user_group_{group_id}"
+            self.user_labels.update({user["username"]: group_label for user in generated_users_list if "username" in user})
+            group_id += 1
         #     # print("List of new users: ")
         #     # print(generated_users_list)# list of new users, each users is a dictionary
         
@@ -493,11 +495,11 @@ class Bot(ABot):
     def generate_post_time(self):
 
         now = datetime.now()
-        max_seconds = (now - now.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
-        random_seconds = random.uniform(0, max_seconds)
-        random_time = now - timedelta(seconds=random_seconds)
+        start_time = now - timedelta(days=365)
+        random_seconds = random.uniform(0, (now - start_time).total_seconds())
+        random_time = start_time + timedelta(seconds=random_seconds)
 
-        #required format: YYYY-MM-DDTHH:MM:SS.000Z
+        # Required format: YYYY-MM-DDTHH:MM:SS.000Z
         return random_time.strftime('%Y-%m-%dT%H:%M:%S') + '.000Z'
 
     def posts_topic_dist(self, generated_posts_dict, total_posts):
@@ -715,6 +717,8 @@ class Bot(ABot):
         return post_distribution
     
     def topic_distribution(self, topic_list, total_num_post):
+
+
         selected_topics = random.sample(topic_list, 4)
         ratios = [0.4, 0.3, 0.2, 0.1]
         post_distribution = {}
@@ -728,3 +732,32 @@ class Bot(ABot):
                 remaining_posts -= num_posts
             post_distribution[topic] = num_posts
         return post_distribution
+
+    def data_analyzing_tool(self, user_id):
+        try:
+            with open('BotTemplate/BotCode/realdata5.json', 'r', encoding='utf-8') as file:
+                data = json.load(file)
+
+            if "posts" not in data:
+                raise KeyError("The JSON file does not contain the 'posts' field.")
+
+            print(f"Posts by User ID: {user_id}")
+            found_posts = False
+            for post in data["posts"]:
+                if post.get("author_id") == user_id:
+                    # print(post.get("text", "No text available"))
+                    print(post.get("created_at"))
+                    print()
+                    found_posts = True
+
+            if not found_posts:
+                print(f"No posts found for User ID: {user_id}")
+
+        except FileNotFoundError:
+            print("Error: JSON file not found.")
+        except KeyError as e:
+            print(f"Error: Missing key in JSON data - {e}")
+        except json.JSONDecodeError:
+            print("Error: Failed to parse JSON data.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
